@@ -1,7 +1,3 @@
-// script.js
-// Calculadora con historial persistente, exportación e importación CSV
-// Además, obtiene datos iniciales desde la API especificada.
-
 (() => {
   const API_BASE = 'https://evo-v9-god-service.onrender.com/api';
   const API_KEY = '217402d05b597d84f340933744da1666';
@@ -64,7 +60,9 @@
       return;
     }
     const header = 'Expresión,Resultado\n';
-    const rows = history.map(e => `"${e.expression.replace(/"/g, '""')}","${e.result}"`).join('\n');
+    const rows = history
+      .map(e => `"${e.expression.replace(/"/g, '""')}","${e.result}"`)
+      .join('\n');
     const csvContent = header + rows;
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -75,24 +73,28 @@
     URL.revokeObjectURL(url);
   };
 
-  const importCSV = (file) => {
+  const importCSV = file => {
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = e => {
       const text = e.target.result;
       const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
-      // Ignorar la primera línea si es encabezado
       const startIdx = lines[0].toLowerCase().startsWith('expresión') ? 1 : 0;
       const newEntries = [];
       for (let i = startIdx; i < lines.length; i++) {
         const line = lines[i];
-        // Separar por comas respetando posibles comillas
         const match = line.match(/^"(.*)","(.*)"$/);
         if (match) {
-          newEntries.push({ expression: match[1].replace(/""/g, '"'), result: match[2] });
+          newEntries.push({
+            expression: match[1].replace(/""/g, '"'),
+            result: match[2]
+          });
         } else {
           const parts = line.split(',');
           if (parts.length >= 2) {
-            newEntries.push({ expression: parts[0].replace(/^"|"$/g, ''), result: parts[1].replace(/^"|"$/g, '') });
+            newEntries.push({
+              expression: parts[0].replace(/^"|"$/g, ''),
+              result: parts[1].replace(/^"|"$/g, '')
+            });
           }
         }
       }
@@ -109,10 +111,8 @@
   };
 
   // ---------- Operaciones ----------
-  const evaluateExpression = (expr) => {
-    // Uso de Function constructor para evaluar de forma segura (solo operadores básicos)
+  const evaluateExpression = expr => {
     try {
-      // Reemplazar operadores unicode si los hubiera
       const sanitized = expr.replace(/[^\d.+\-*/() ]/g, '');
       // eslint-disable-next-line no-new-func
       const fn = new Function(`return (${sanitized})`);
@@ -165,11 +165,10 @@
   }
 
   if (importCsvInput) {
-    importCsvInput.addEventListener('change', (e) => {
+    importCsvInput.addEventListener('change', e => {
       const file = e.target.files[0];
       if (file) {
         importCSV(file);
-        // Reset input para permitir volver a cargar el mismo archivo si se desea
         importCsvInput.value = '';
       }
     });
@@ -180,10 +179,9 @@
     loadHistory();
     renderHistory();
 
-    // Obtener datos de la API (ejemplo genérico)
     try {
       const dataResp = await fetch(`${API_BASE}/data?app=${APP_ID}`, {
-        headers: { 'Authorization': `Bearer ${API_KEY}` }
+        headers: { Authorization: `Bearer ${API_KEY}` }
       });
       const dataJson = await dataResp.json();
       console.log('Datos /data:', dataJson);
@@ -193,7 +191,7 @@
 
     try {
       const groqResp = await fetch(`${API_BASE}/groq?app=${APP_ID}`, {
-        headers: { 'Authorization': `Bearer ${API_KEY}` }
+        headers: { Authorization: `Bearer ${API_KEY}` }
       });
       const groqJson = await groqResp.json();
       console.log('Datos /groq:', groqJson);
@@ -202,5 +200,5 @@
     }
   };
 
-  document.addEventListener('DOMContentLoaded', init);
+  init();
 })();
