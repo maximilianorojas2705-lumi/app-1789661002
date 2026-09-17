@@ -1,0 +1,140 @@
+import json
+
+html_content = """<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Calculadora con Historial</title>
+    <style>
+        body {font-family: Arial, sans-serif; margin: 20px;}
+        .calculator {max-width: 400px; margin: auto;}
+        input[type="number"] {width: 100%; padding: 8px; font-size: 1.2em;}
+        .ops button {width: 23%; margin: 1%; padding: 10px; font-size: 1.1em;}
+        #result {margin-top: 10px; font-weight: bold;}
+        #history {margin-top: 20px; border-top: 1px solid #ccc; padding-top: 10px;}
+        #history ul {list-style: none; padding: 0;}
+        #history li {margin-bottom: 5px;}
+        .controls button {margin-right: 10px;}
+    </style>
+</head>
+<body>
+<div class="calculator">
+    <h2>Calculadora</h2>
+    <input id="num1" type="number" placeholder="Primer número">
+    <div class="ops">
+        <button data-op="+">+</button>
+        <button data-op="-">‑</button>
+        <button data-op="*">×</button>
+        <button data-op="/">÷</button>
+    </div>
+    <input id="num2" type="number" placeholder="Segundo número">
+    <div id="result"></div>
+
+    <div class="controls">
+        <button id="clearHistory">Borrar historial</button>
+        <button id="exportCsv">Exportar CSV</button>
+        <input type="file" id="importCsv" accept=".csv" style="display:none;">
+        <button id="importBtn">Importar CSV</button>
+    </div>
+
+    <div id="history">
+        <h3>Historial</h3>
+        <ul id="historyList"></ul>
+    </div>
+</div>
+
+<script>
+const historyKey = 'calcHistory';
+let history = JSON.parse(localStorage.getItem(historyKey)) || [];
+
+function renderHistory() {
+    const list = document.getElementById('historyList');
+    list.innerHTML = '';
+    history.forEach((item, idx) => {
+        const li = document.createElement('li');
+        li.textContent = `${item.expr} = ${item.result}`;
+        list.appendChild(li);
+    });
+}
+
+function saveHistory() {
+    localStorage.setItem(historyKey, JSON.stringify(history));
+}
+
+function calculate(op) {
+    const a = parseFloat(document.getElementById('num1').value);
+    const b = parseFloat(document.getElementById('num2').value);
+    if (isNaN(a) || isNaN(b)) {
+        document.getElementById('result').textContent = 'Ingrese ambos números';
+        return;
+    }
+    let res;
+    switch (op) {
+        case '+': res = a + b; break;
+        case '-': res = a - b; break;
+        case '*': res = a * b; break;
+        case '/': res = b !== 0 ? a / b : 'Error (div /0)'; break;
+    }
+    const expr = `${a} ${op} ${b}`;
+    document.getElementById('result').textContent = `Resultado: ${res}`;
+    if (typeof res === 'number') {
+        history.unshift({expr, result: res});
+        if (history.length > 100) history.pop();
+        saveHistory();
+        renderHistory();
+    }
+}
+
+document.querySelectorAll('.ops button').forEach(btn => {
+    btn.addEventListener('click', () => calculate(btn.dataset.op));
+});
+
+document.getElementById('clearHistory').addEventListener('click', () => {
+    history = [];
+    saveHistory();
+    renderHistory();
+});
+
+document.getElementById('exportCsv').addEventListener('click', () => {
+    const csvContent = 'data:text/csv;charset=utf-8,' + 
+        ['Expresión,Resultado', ...history.map(h => `"${h.expr}","${h.result}"`)].join('\\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', 'historial.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+});
+
+document.getElementById('importBtn').addEventListener('click', () => {
+    document.getElementById('importCsv').click();
+});
+
+document.getElementById('importCsv').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        const text = event.target.result;
+        const lines = text.split('\\n').slice(1); // skip header
+        const imported = lines.map(l => {
+            const [expr, result] = l.replace(/^"|"$/g, '').split('","');
+            return {expr, result: isNaN(Number(result)) ? result : Number(result)};
+        }).filter(item => item.expr);
+        history = imported.concat(history);
+        if (history.length > 100) history = history.slice(0,100);
+        saveHistory();
+        renderHistory();
+    };
+    reader.readAsText(file);
+});
+
+window.addEventListener('load', renderHistory);
+</script>
+</body>
+</html>
+"""
+
+with open('index.html', 'w', encoding='utf-8') as f:
+    f.write(html_content)
